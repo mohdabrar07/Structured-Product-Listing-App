@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/widgets/error_widget.dart';
 import '../../../../core/widgets/loading_widget.dart';
+import '../../../cart/presentation/screens/cart_screen.dart'; // Fixed: Added missing CartScreen import
 import '../../logic/cubit/product_cubit.dart';
 import '../../logic/cubit/product_state.dart';
 import '../widgets/product_card.dart';
@@ -17,10 +18,22 @@ class ProductListScreen extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0.5,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.indigo),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
+          ),
+        ],
       ),
+      // Fixed: Wrapped loose components securely within the primary layout body parameter array
       body: Column(
         children: [
-          // Search Input Bar Widget
+          // Fixed: Restored the missing Search Bar component block
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(

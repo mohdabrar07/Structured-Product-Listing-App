@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../cart/logic/cubit/cart_cubit.dart'; // Added missing CartCubit import
 import '../../logic/cubit/product_cubit.dart';
 
 class ProductDetailScreen extends StatelessWidget {
@@ -12,6 +13,7 @@ class ProductDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final product = context.read<ProductCubit>().getProductDetailsFromCache(productId);
 
+    // 1. Error Fallback Layout State Block
     if (product == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Details')),
@@ -19,6 +21,7 @@ class ProductDetailScreen extends StatelessWidget {
       );
     }
 
+    // 2. Normal Valid Product Detail Layout State Block
     return Scaffold(
       appBar: AppBar(
         title: Text(product.category.toUpperCase(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
@@ -90,6 +93,21 @@ class ProductDetailScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+      // Fixed: Moved floating action button into the correct, valid root layout area
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.indigo,
+        onPressed: () {
+          context.read<CartCubit>().addProduct(product);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${product.title} added to cart!'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        },
+        icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
+        label: const Text('Add to Cart', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }

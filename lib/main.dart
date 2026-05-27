@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
+import 'features/cart/logic/cubit/cart_cubit.dart';
 import 'features/products/data/repositories/product_repository.dart';
 import 'features/products/data/services/product_service.dart';
 import 'features/products/logic/cubit/product_cubit.dart';
 import 'features/products/presentation/screens/product_list_screen.dart';
 
 void main() {
-  
   final httpClient = http.Client();
   final productService = ProductService(client: httpClient);
   final productRepository = ProductRepository(productService: productService);
@@ -22,8 +22,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => ProductCubit(repository: productRepository)..loadProducts(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<ProductCubit>(
+          create: (context) => ProductCubit(repository: productRepository)..loadProducts(),
+        ),
+        BlocProvider<CartCubit>(
+          create: (context) => CartCubit(),
+        ),
+      ],
       child: MaterialApp(
         title: 'Product Explorer Architecture',
         debugShowCheckedModeBanner: false,
