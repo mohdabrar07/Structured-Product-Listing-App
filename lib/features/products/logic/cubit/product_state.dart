@@ -1,8 +1,11 @@
 import '../../data/models/product_model.dart';
 
+// Sorting configuration options state criteria matrix
 enum SortOrder { none, priceLowToHigh, priceHighToLow }
 
 sealed class ProductState {}
+
+class ProductInitial extends ProductState {}
 
 class ProductLoadingState extends ProductState {}
 
@@ -12,39 +15,43 @@ class ProductErrorState extends ProductState {
 }
 
 class ProductSuccessState extends ProductState {
-  // Contains the raw unmodified source data
+  // Master cache: The original, pristine list untouched from the single API call
   final List<Product> masterProducts;
-  // Contains the dynamic filtered result slice pushed directly to the UI
-  final List<Product> displayedProducts;
-  final List<String> categories;
   
-  // Track current criteria filters
-  final String searchQuery;
+  // Active UI list: The subset altered dynamically by search, sorting, or categories
+  final List<Product> displayedProducts;
+  
+  // Active UI Filtering Values
+  final List<String> categories;
   final String selectedCategory;
-  final SortOrder selectedSortOrder;
+  final String searchQuery;
+  final SortOrder activeSortOrder;
 
   ProductSuccessState({
     required this.masterProducts,
     required this.displayedProducts,
     required this.categories,
-    this.searchQuery = '',
     this.selectedCategory = 'All',
-    this.selectedSortOrder = SortOrder.none,
+    this.searchQuery = '',
+    this.activeSortOrder = SortOrder.none,
   });
 
+  // Structural state modifier matrix
   ProductSuccessState copyWith({
+    List<Product>? masterProducts,
     List<Product>? displayedProducts,
-    String? searchQuery,
+    List<String>? categories,
     String? selectedCategory,
-    SortOrder? selectedSortOrder,
+    String? searchQuery,
+    SortOrder? activeSortOrder,
   }) {
     return ProductSuccessState(
-      masterProducts: this.masterProducts,
-      categories: this.categories,
+      masterProducts: masterProducts ?? this.masterProducts,
       displayedProducts: displayedProducts ?? this.displayedProducts,
-      searchQuery: searchQuery ?? this.searchQuery,
+      categories: categories ?? this.categories,
       selectedCategory: selectedCategory ?? this.selectedCategory,
-      selectedSortOrder: selectedSortOrder ?? this.selectedSortOrder,
+      searchQuery: searchQuery ?? this.searchQuery,
+      activeSortOrder: activeSortOrder ?? this.activeSortOrder,
     );
   }
 }

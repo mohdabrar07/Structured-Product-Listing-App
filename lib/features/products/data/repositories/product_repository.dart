@@ -9,7 +9,7 @@ class ProductRepository {
 
   ProductRepository({required this.productService});
 
-  Future<List<Product>> getProducts() async {
+  Future<List<Product>> getProductsList() async {
     try {
       final rawData = await productService.fetchRawProducts();
       return rawData.map((item) => Product.fromJson(item)).toList();
