@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../../../core/constants/api_constants.dart';
+import '../models/product_model.dart';
 
 class ProductService {
   final http.Client client;
 
   ProductService({required this.client});
 
-  Future<List<dynamic>> fetchRawProducts() async {
-    final response = await client.get(Uri.parse(ApiConstants.productsEndpoint));
+  Future<List<dynamic>> fetchRawProductsFromApi() async {
+    final response = await client.get(Uri.parse('https://fakestoreapi.com/products'));
     
     if (response.statusCode == 200) {
-      return json.decode(response.body) as List<dynamic>;
+      return jsonDecode(response.body) as List<dynamic>;
     } else {
-      throw Exception('Server returned status code: ${response.statusCode}');
+      throw Exception('Failed to pull server items');
     }
   }
 }

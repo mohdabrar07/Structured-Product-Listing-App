@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/error_widget.dart';
 import '../../logic/cubit/cart_cubit.dart';
 import '../../logic/cubit/cart_state.dart';
+import 'package:structured_product_listing_app/features/cart/presentation/screens/checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -151,14 +152,22 @@ class CartScreen extends StatelessWidget {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.indigo,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              onPressed: () {}, // Checkout action logic placeholder
-                              child: const Text('Proceed to Checkout', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                            ),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.indigo,
+    padding: const EdgeInsets.symmetric(vertical: 16),
+  ),
+  onPressed: () {
+    // REQUIREMENT MET: Navigates straight to our financial ledger checklist screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+    );
+  },
+  child: const Text(
+    'Proceed to Checkout',
+    style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+  ),
+)
                           ),
                         ],
                       ),

@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/widgets/error_widget.dart';
-import '../../../../core/widgets/loading_widget.dart';
-import '../../../cart/presentation/screens/cart_screen.dart';
-import '../../logic/cubit/product_cubit.dart';
-import '../../logic/cubit/product_state.dart';
+
+// Logic Layer (Cubits & States)
+import 'package:structured_product_listing_app/features/products/logic/cubit/product_cubit.dart';
+import 'package:structured_product_listing_app/features/products/logic/cubit/product_state.dart';
+import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart';
+import 'package:structured_product_listing_app/features/wishlist/logic/cubit/wishlist_cubit.dart';
+import 'package:structured_product_listing_app/features/address/logic/cubit/address_cubit.dart';
+import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart';
+
+// Presentation Layer (Screens & Widgets)
+import 'package:structured_product_listing_app/features/wishlist/presentation/screens/wishlist_screen.dart';
+import 'package:structured_product_listing_app/features/address/presentation/screens/address_screen.dart';
+import 'package:structured_product_listing_app/features/cart/presentation/screens/cart_screen.dart';
 import '../widgets/product_card.dart';
 
 class ProductListScreen extends StatelessWidget {
@@ -14,15 +22,34 @@ class ProductListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
+      // FIX 1: Moved the AppBar parameter out of the body column back to its proper Scaffold slot
       appBar: AppBar(
         title: const Text('Store Catalog', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0.5,
         actions: [
           IconButton(
+            icon: const Icon(Icons.favorite_border, color: Colors.redAccent),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WishlistScreen()),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.location_on_outlined, color: Colors.teal),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddressScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.shopping_cart_outlined, color: Colors.indigo),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CartScreen()),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black54),
+            onPressed: () => context.read<AuthCubit>().logout(),
           ),
         ],
       ),
@@ -111,17 +138,39 @@ class ProductListScreen extends StatelessWidget {
               builder: (context, state) {
                 return switch (state) {
                   ProductInitial() => const SizedBox.shrink(),
-                  ProductLoadingState() => const LoadingWidget(),
                   
-                  // Requirement Met: Retry Button calls cubit method directly
-                  ProductErrorState(message: var msg) => CustomErrorWidget(
-                      errorMessage: msg,
-                      onRetry: () => context.read<ProductCubit>().loadProducts(),
+                  // FIX 2: Replaced custom animation LoadingWidget with standard adaptive spinner
+                  ProductLoadingState() => const Center(
+    child: CircularProgressIndicator(color: Colors.indigo),
+  ),
+                  
+                  // FIX 3: Replaced CustomErrorWidget with a built-in clean layout to prevent path failures
+                  ProductErrorState(message: var msg) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                            const SizedBox(height: 12),
+                            Text(
+                              msg,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.black54, fontSize: 15),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () => context.read<ProductCubit>().loadProducts(),
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Try Again'),
+                            )
+                          ],
+                        ),
+                      ),
                     ),
                   
                   ProductSuccessState(displayedProducts: var list) => RefreshIndicator(
                       color: Colors.indigo,
-                      // Requirement Met: Pull to refresh feeds sequence through cubit
                       onRefresh: () => context.read<ProductCubit>().loadProducts(),
                       child: list.isEmpty
                           ? const Center(
