@@ -26,7 +26,7 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   void logout() async {
-    await StorageService.clearAllData(); // Wipes everything for security
-    emit(AuthLoggedOut());
-  }
+  await StorageService.clearSession();
+  emit(AuthLoggedOut());
+}
 }

@@ -1,95 +1,107 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:hive_flutter/hive_flutter.dart';
+
+import '../constants/hive_constants.dart';
+
 import '../../features/cart/data/models/cart_item_model.dart';
 import '../../features/products/data/models/product_model.dart';
 
 class StorageService {
-  static late final SharedPreferences _prefs;
+  static late Box _authBox;
+  static late Box _cartBox;
+  static late Box _wishlistBox;
+  static late Box _addressBox;
+  static late Box _profileBox;
 
-  // Keys used to separate distinct data matrices in memory storage
-  static const String _keyLoginSession = 'user_login_session';
-  static const String _keyCartItems = 'user_cart_items';
-  static const String _keyWishlistItems = 'user_wishlist_items';
-  static const String _keyUserAddress = 'user_shipping_address';
-
-  // Initialize SharedPreferences asynchronously during app bootup
   static Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
+    await Hive.initFlutter();
+
+    _authBox = await Hive.openBox(HiveConstants.authBox);
+    _cartBox = await Hive.openBox(HiveConstants.cartBox);
+    _wishlistBox = await Hive.openBox(HiveConstants.wishlistBox);
+    _addressBox = await Hive.openBox(HiveConstants.addressBox);
+    _profileBox = await Hive.openBox(HiveConstants.profileBox);
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // 1. LOGIN SESSION STATE ENGINE
-  // ───────────────────────────────────────────────────────────────────────────
-  static Future<void> saveLoginSession(bool isLoggedIn) async {
-    await _prefs.setBool(_keyLoginSession, isLoggedIn);
+  // ================= AUTH =================
+
+  static Future<void> saveLoginSession(bool value) async {
+    await _authBox.put(HiveConstants.loginKey, value);
   }
 
   static bool getLoginSession() {
-    return _prefs.getBool(_keyLoginSession) ?? false; // Defaults to false if never saved
+    return _authBox.get(HiveConstants.loginKey, defaultValue: false);
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // 2. CART PERSISTENCE PIPELINE (JSON Encoding/Decoding Matrix)
-  // ───────────────────────────────────────────────────────────────────────────
-  static Future<void> saveCart(List<CartItem> items) async {
-    // Edge Case / Core Rule: Convert custom object structural arrays into readable text strings
-    final List<Map<String, dynamic>> rawJsonList = items.map((item) => {
-      'quantity': item.quantity,
-      'product': item.product.toJson(), // Assumes your Product model has a toJson() method
-    }).toList();
+  static Future<void> clearSession() async {
+    await _authBox.clear();
+  }
 
-    final String encodedString = jsonEncode(rawJsonList);
-    await _prefs.setString(_keyCartItems, encodedString);
+  // ================= CART =================
+
+  static Future<void> saveCart(List<CartItem> items) async {
+    final encoded = items.map((e) => jsonEncode(e.toJson())).toList();
+
+    await _cartBox.put(HiveConstants.cartKey, encoded);
   }
 
   static List<CartItem> getCart() {
-    final String? encodedString = _prefs.getString(_keyCartItems);
-    if (encodedString == null || encodedString.isEmpty) return [];
+    final List<dynamic> raw =
+        _cartBox.get(HiveConstants.cartKey, defaultValue: []);
 
-    try {
-      final List<dynamic> decodedRawList = jsonDecode(encodedString);
-      return decodedRawList.map((itemMap) => CartItem(
-        quantity: itemMap['quantity'] as int,
-        product: Product.fromJson(itemMap['product']),
-      )).toList();
-    } catch (_) {
-      return []; // Returns empty fallback list gracefully if parsing fails
-    }
+    return raw
+        .map((e) => CartItem.fromJson(jsonDecode(e)))
+        .toList();
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // 3. WISHLIST PERSISTENCE PIPELINE
-  // ───────────────────────────────────────────────────────────────────────────
-  static Future<void> saveWishlist(List<Product> products) async {
-    final List<Map<String, dynamic>> rawJsonList = products.map((p) => p.toJson()).toList();
-    await _prefs.setString(_keyWishlistItems, jsonEncode(rawJsonList));
+  // ================= WISHLIST =================
+
+  static Future<void> saveWishlist(List<Product> items) async {
+    final encoded = items.map((e) => jsonEncode(e.toJson())).toList();
+
+    await _wishlistBox.put(HiveConstants.wishlistKey, encoded);
   }
 
   static List<Product> getWishlist() {
-    final String? encodedString = _prefs.getString(_keyWishlistItems);
-    if (encodedString == null || encodedString.isEmpty) return [];
+    final List<dynamic> raw =
+        _wishlistBox.get(HiveConstants.wishlistKey, defaultValue: []);
 
-    try {
-      final List<dynamic> decodedRawList = jsonDecode(encodedString);
-      return decodedRawList.map((pMap) => Product.fromJson(pMap)).toList();
-    } catch (_) {
-      return [];
-    }
+    return raw
+        .map((e) => Product.fromJson(jsonDecode(e)))
+        .toList();
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // 4. SHIPPING ADDRESS PERSISTENCE PIPELINE
-  // ───────────────────────────────────────────────────────────────────────────
+  // ================= ADDRESS =================
+
   static Future<void> saveAddress(String address) async {
-    await _prefs.setString(_keyUserAddress, address);
+    await _addressBox.put(HiveConstants.addressKey, address);
   }
 
   static String getAddress() {
-    return _prefs.getString(_keyUserAddress) ?? ''; // Returns empty string if unassigned
+    return _addressBox.get(HiveConstants.addressKey, defaultValue: '');
   }
 
-  // Clear data on user logout
-  static Future<void> clearAllData() async {
-    await _prefs.clear();
+  // ================= PROFILE =================
+
+  static Future<void> saveProfile({
+    required String name,
+    required String email,
+    required String phone,
+  }) async {
+    await _profileBox.put(HiveConstants.userNameKey, name);
+    await _profileBox.put(HiveConstants.userEmailKey, email);
+    await _profileBox.put(HiveConstants.userPhoneKey, phone);
+  }
+
+  static Map<String, String> getProfile() {
+    return {
+      'name':
+          _profileBox.get(HiveConstants.userNameKey, defaultValue: ''),
+      'email':
+          _profileBox.get(HiveConstants.userEmailKey, defaultValue: ''),
+      'phone':
+          _profileBox.get(HiveConstants.userPhoneKey, defaultValue: ''),
+    };
   }
 }
