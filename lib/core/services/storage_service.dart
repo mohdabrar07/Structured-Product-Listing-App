@@ -1,107 +1,59 @@
-import 'dart:convert';
-
-import 'package:hive_flutter/hive_flutter.dart';
-
-import '../constants/hive_constants.dart';
-
-import '../../features/cart/data/models/cart_item_model.dart';
-import '../../features/products/data/models/product_model.dart';
+import 'package:hive_ce/hive_ce.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 
 class StorageService {
-  static late Box _authBox;
-  static late Box _cartBox;
-  static late Box _wishlistBox;
-  static late Box _addressBox;
-  static late Box _profileBox;
+  static const String _authBoxName = 'auth_box';
+  static const String _shoppingBoxName = 'shopping_box';
 
-  static Future<void> init() async {
+  Future<void> init() async {
     await Hive.initFlutter();
-
-    _authBox = await Hive.openBox(HiveConstants.authBox);
-    _cartBox = await Hive.openBox(HiveConstants.cartBox);
-    _wishlistBox = await Hive.openBox(HiveConstants.wishlistBox);
-    _addressBox = await Hive.openBox(HiveConstants.addressBox);
-    _profileBox = await Hive.openBox(HiveConstants.profileBox);
+    await Hive.openBox(_authBoxName);
+    await Hive.openBox(_shoppingBoxName);
   }
 
-  // ================= AUTH =================
-
-  static Future<void> saveLoginSession(bool value) async {
-    await _authBox.put(HiveConstants.loginKey, value);
+  String? getToken() {
+    final box = Hive.box(_authBoxName);
+    return box.get('token') as String?;
   }
 
-  static bool getLoginSession() {
-    return _authBox.get(HiveConstants.loginKey, defaultValue: false);
+  Future<void> saveToken(String token) async {
+    final box = Hive.box(_authBoxName);
+    await box.put('token', token);
   }
 
-  static Future<void> clearSession() async {
-    await _authBox.clear();
+  // New: Core functions to isolate user sessions
+  Future<void> saveUserEmail(String email) async {
+    final box = Hive.box(_authBoxName);
+    await box.put('active_user_email', email);
   }
 
-  // ================= CART =================
-
-  static Future<void> saveCart(List<CartItem> items) async {
-    final encoded = items.map((e) => jsonEncode(e.toJson())).toList();
-
-    await _cartBox.put(HiveConstants.cartKey, encoded);
+  String getUserEmail() {
+    final box = Hive.box(_authBoxName);
+    return box.get('active_user_email', defaultValue: 'guest') as String;
   }
 
-  static List<CartItem> getCart() {
-    final List<dynamic> raw =
-        _cartBox.get(HiveConstants.cartKey, defaultValue: []);
-
-    return raw
-        .map((e) => CartItem.fromJson(jsonDecode(e)))
-        .toList();
+  Future<void> clearAuthSession() async {
+    final box = Hive.box(_authBoxName);
+    await box.delete('token');
+    await box.delete('active_user_email');
   }
 
-  // ================= WISHLIST =================
-
-  static Future<void> saveWishlist(List<Product> items) async {
-    final encoded = items.map((e) => jsonEncode(e.toJson())).toList();
-
-    await _wishlistBox.put(HiveConstants.wishlistKey, encoded);
+  // Scoped Data Methods
+  dynamic retrieveData(String key) {
+    final box = Hive.box(_shoppingBoxName);
+    final userScope = getUserEmail();
+    return box.get('${userScope}_$key');
   }
 
-  static List<Product> getWishlist() {
-    final List<dynamic> raw =
-        _wishlistBox.get(HiveConstants.wishlistKey, defaultValue: []);
-
-    return raw
-        .map((e) => Product.fromJson(jsonDecode(e)))
-        .toList();
+  Future<void> persistData(String key, dynamic value) async {
+    final box = Hive.box(_shoppingBoxName);
+    final userScope = getUserEmail();
+    await box.put('${userScope}_$key', value);
   }
 
-  // ================= ADDRESS =================
-
-  static Future<void> saveAddress(String address) async {
-    await _addressBox.put(HiveConstants.addressKey, address);
-  }
-
-  static String getAddress() {
-    return _addressBox.get(HiveConstants.addressKey, defaultValue: '');
-  }
-
-  // ================= PROFILE =================
-
-  static Future<void> saveProfile({
-    required String name,
-    required String email,
-    required String phone,
-  }) async {
-    await _profileBox.put(HiveConstants.userNameKey, name);
-    await _profileBox.put(HiveConstants.userEmailKey, email);
-    await _profileBox.put(HiveConstants.userPhoneKey, phone);
-  }
-
-  static Map<String, String> getProfile() {
-    return {
-      'name':
-          _profileBox.get(HiveConstants.userNameKey, defaultValue: ''),
-      'email':
-          _profileBox.get(HiveConstants.userEmailKey, defaultValue: ''),
-      'phone':
-          _profileBox.get(HiveConstants.userPhoneKey, defaultValue: ''),
-    };
+  Future<void> deleteData(String key) async {
+    final box = Hive.box(_shoppingBoxName);
+    final userScope = getUserEmail();
+    await box.delete('${userScope}_$key');
   }
 }

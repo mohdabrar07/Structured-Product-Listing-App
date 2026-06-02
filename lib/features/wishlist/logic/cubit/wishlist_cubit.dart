@@ -1,44 +1,47 @@
+import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/services/storage_service.dart';
-import '../../../products/data/models/product_model.dart';
+import 'package:structured_product_listing_app/core/services/storage_service.dart';
+import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
 
-sealed class WishlistState {}
-class WishlistEmpty extends WishlistState {}
-class WishlistUpdated extends WishlistState {
-  final List<Product> items;
-  WishlistUpdated(this.items);
-}
+class WishlistCubit extends Cubit<List<ProductModel>> {
+  final StorageService _storageService;
+  static const String _wishlistKey = 'cached_user_wishlist_items';
 
-class WishlistCubit extends Cubit<WishlistState> {
-  final List<Product> _internalWishlist = [];
-
-  WishlistCubit() : super(WishlistEmpty()) {
-    _hydrateWishlist();
+  WishlistCubit(this._storageService) : super([]) {
+    _hydrateWishlistFromStorage();
   }
 
-  void _hydrateWishlist() {
-    final savedItems = StorageService.getWishlist();
-    if (savedItems.isNotEmpty) {
-      _internalWishlist.addAll(savedItems);
-      emit(WishlistUpdated(List.from(_internalWishlist)));
-    }
+  /// Reads persistent string indexes directly out of the primary Hive storage file
+  void _hydrateWishlistFromStorage() {
+    try {
+      final rawData = _storageService.retrieveData(_wishlistKey);
+      if (rawData != null && rawData is String) {
+        final List<dynamic> decoded = jsonDecode(rawData);
+        final products = decoded.map((item) => ProductModel.fromJson(item)).toList();
+        emit(products);
+      }
+    } catch (_) {}
   }
 
-  void toggleWishlist(Product product) {
-    final exists = _internalWishlist.any((p) => p.id == product.id);
-    if (exists) {
-      _internalWishlist.removeWhere((p) => p.id == product.id);
+  /// Commits updates to disk
+  Future<void> _persistWishlistToCache(List<ProductModel> currentList) async {
+    final mappedList = currentList.map((item) => item.toJson()).toList();
+    final jsonString = jsonEncode(mappedList);
+    await _storageService.persistData(_wishlistKey, jsonString);
+  }
+
+  /// Toggles the favorite status of a item, saving the updated list locally
+  void toggleWishlist(ProductModel targetProduct) {
+    final currentList = List<ProductModel>.from(state);
+    final existsIndex = currentList.indexWhere((element) => element.id == targetProduct.id);
+
+    if (existsIndex >= 0) {
+      currentList.removeAt(existsIndex);
     } else {
-      _internalWishlist.add(product);
+      currentList.add(targetProduct);
     }
 
-    // PERSISTENCE BLOCK: Write updated array instantly to storage cache
-    StorageService.saveWishlist(_internalWishlist);
-
-    if (_internalWishlist.isEmpty) {
-      emit(WishlistEmpty());
-    } else {
-      emit(WishlistUpdated(List.from(_internalWishlist)));
-    }
+    emit(currentList);
+    _persistWishlistToCache(currentList);
   }
 }

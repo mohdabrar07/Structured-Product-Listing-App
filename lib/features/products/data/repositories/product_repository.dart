@@ -1,14 +1,19 @@
-import '../models/product_model.dart';
-import '../services/product_service.dart';
+import 'package:structured_product_listing_app/core/errors/failures.dart';
+import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
+import 'package:structured_product_listing_app/features/products/data/services/product_service.dart';
 
 class ProductRepository {
-  final ProductService productService;
+  final ProductService _productService;
 
-  ProductRepository({required this.productService});
+  ProductRepository(this._productService);
 
-  Future<List<Product>> getProductsList() async {
-    final List<dynamic> rawData = await productService.fetchRawProductsFromApi();
-    // Safely transforms map structures directly into our new model format
-    return rawData.map((item) => Product.fromJson(Map<String, dynamic>.from(item))).toList();
+  /// Acquires products and transforms any structural errors into clean Failures
+  Future<List<ProductModel>> getProducts() async {
+    try {
+      return await _productService.fetchProductsFromApi();
+    } catch (e) {
+      // Intercept execution issues and rethrow standard architectural failures
+      throw ServerFailure(e.toString());
+    }
   }
 }

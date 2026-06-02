@@ -1,19 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-// Logic Layer (Cubits & States)
 import 'package:structured_product_listing_app/features/products/logic/cubit/product_cubit.dart';
 import 'package:structured_product_listing_app/features/products/logic/cubit/product_state.dart';
-import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart';
-import 'package:structured_product_listing_app/features/wishlist/logic/cubit/wishlist_cubit.dart';
-import 'package:structured_product_listing_app/features/address/logic/cubit/address_cubit.dart';
-import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart';
-
-// Presentation Layer (Screens & Widgets)
-import 'package:structured_product_listing_app/features/wishlist/presentation/screens/wishlist_screen.dart';
-import 'package:structured_product_listing_app/features/address/presentation/screens/address_screen.dart';
-import 'package:structured_product_listing_app/features/cart/presentation/screens/cart_screen.dart';
-import '../widgets/product_card.dart';
+import 'package:structured_product_listing_app/features/products/presentation/widgets/product_card.dart';
+import 'package:structured_product_listing_app/core/widgets/loading_widget.dart';
+import 'package:structured_product_listing_app/core/widgets/error_widget.dart';
 
 class ProductListScreen extends StatelessWidget {
   const ProductListScreen({super.key});
@@ -22,40 +13,15 @@ class ProductListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      // FIX 1: Moved the AppBar parameter out of the body column back to its proper Scaffold slot
       appBar: AppBar(
         title: const Text('Store Catalog', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border, color: Colors.redAccent),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const WishlistScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.location_on_outlined, color: Colors.teal),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddressScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.indigo),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CartScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black54),
-            onPressed: () => context.read<AuthCubit>().logout(),
-          ),
-        ],
+        elevation: 0.5,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
       body: Column(
         children: [
-          // A. Interactive Search Text Processing Input Box
+          // Search Box Integration Module
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
@@ -66,15 +32,19 @@ class ProductListScreen extends StatelessWidget {
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.indigo),
                 ),
               ),
             ),
           ),
 
-          // B. Category Dropdown & Sorting Filter Ribbon Controls
+          // Ribbon Filter Controls Row Block
           BlocBuilder<ProductCubit, ProductState>(
             builder: (context, state) {
               if (state is ProductSuccessState) {
@@ -85,7 +55,11 @@ class ProductListScreen extends StatelessWidget {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(
+                            color: Colors.white, 
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
                               value: state.selectedCategory,
@@ -103,7 +77,11 @@ class ProductListScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Container(
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(
+                          color: Colors.white, 
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
                         child: PopupMenuButton<SortOrder>(
                           icon: const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -132,52 +110,30 @@ class ProductListScreen extends StatelessWidget {
             },
           ),
 
-          // C. Core Native Content State Machine Engine
+          // Catalog Content Injection Frame Switch Matrix
           Expanded(
             child: BlocBuilder<ProductCubit, ProductState>(
               builder: (context, state) {
                 return switch (state) {
                   ProductInitial() => const SizedBox.shrink(),
-                  
-                  // FIX 2: Replaced custom animation LoadingWidget with standard adaptive spinner
-                  ProductLoadingState() => const Center(
-    child: CircularProgressIndicator(color: Colors.indigo),
-  ),
-                  
-                  // FIX 3: Replaced CustomErrorWidget with a built-in clean layout to prevent path failures
-                  ProductErrorState(message: var msg) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-                            const SizedBox(height: 12),
-                            Text(
-                              msg,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.black54, fontSize: 15),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () => context.read<ProductCubit>().loadProducts(),
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Try Again'),
-                            )
-                          ],
-                        ),
-                      ),
+                  ProductLoadingState() => const LoadingWidget(),
+                  ProductErrorState(message: var msg) => AppErrorWidget(
+                      errorMessage: msg,
+                      onRetry: () => context.read<ProductCubit>().loadProducts(),
                     ),
-                  
                   ProductSuccessState(displayedProducts: var list) => RefreshIndicator(
                       color: Colors.indigo,
                       onRefresh: () => context.read<ProductCubit>().loadProducts(),
                       child: list.isEmpty
-                          ? const Center(
-                              child: Text('No matching products found.', style: TextStyle(color: Colors.grey)),
-                            )
-                          : ListView.builder(
+                          ? const Center(child: Text('No matching products found.', style: TextStyle(color: Colors.grey)))
+                          : GridView.builder(
                               padding: const EdgeInsets.all(12),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.72,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                              ),
                               itemCount: list.length,
                               itemBuilder: (context, index) => ProductCard(product: list[index]),
                             ),

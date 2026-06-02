@@ -1,94 +1,59 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/constants/api_constants.dart';
-import '../../../../core/services/storage_service.dart'; // Import storage engine
-import '../../../products/data/models/product_model.dart';
-import '../../data/models/cart_item_model.dart';
-import 'cart_state.dart';
+import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
 
-class CartCubit extends Cubit<CartState> {
-  // Local active memory instance of items in cart
-  final List<CartItem> _internalCartItems = [];
+// ==========================================================================
+// 1. CART FEATURE STATE MANAGEMENT
+// ==========================================================================
+class CartCubit extends Cubit<List<ProductModel>> {
+  CartCubit() : super([]);
 
-  CartCubit() : super(CartInitial()) {
-    // RESTART TESTING ACTION: Hydrate memory array with saved storage blocks immediately on construction
-    _loadCartFromLocalStorage();
+  void addToCart(ProductModel product) {
+    emit([...state, product]);
   }
 
-  // Core Hydration Method
-  void _loadCartFromLocalStorage() {
-    try {
-      final savedItems = StorageService.getCart();
-      if (savedItems.isNotEmpty) {
-        _internalCartItems.addAll(savedItems);
-        _calculateAndEmitTotals();
-      } else {
-        emit(CartEmpty());
-      }
-    } catch (_) {
-      emit(CartEmpty());
-    }
+  void removeFromCart(ProductModel product) {
+    final updated = List<ProductModel>.from(state)..remove(product);
+    emit(updated);
   }
 
-  void addProduct(Product product) {
-    final existingIndex = _internalCartItems.indexWhere((item) => item.product.id == product.id);
-
-    if (existingIndex >= 0) {
-      final currentQty = _internalCartItems[existingIndex].quantity;
-      _internalCartItems[existingIndex] = _internalCartItems[existingIndex].copyWith(
-        quantity: currentQty + 1,
-      );
-    } else {
-      _internalCartItems.add(CartItem(product: product, quantity: 1));
-    }
-
-    _calculateAndEmitTotals();
+  void clearCart() {
+    emit([]);
   }
+}
 
-  void increaseQuantity(int productId) {
-    final index = _internalCartItems.indexWhere((item) => item.product.id == productId);
-    if (index >= 0) {
-      final currentQty = _internalCartItems[index].quantity;
-      _internalCartItems[index] = _internalCartItems[index].copyWith(quantity: currentQty + 1);
-      _calculateAndEmitTotals();
-    }
-  }
+// ==========================================================================
+// 2. ORDER HISTORY FEATURE DATA MODEL
+// ==========================================================================
+class OrderModel {
+  final String id;
+  final List<ProductModel> items;
+  final double total;
+  final String address;
+  final DateTime date;
 
-  void decreaseQuantity(int productId) {
-    final index = _internalCartItems.indexWhere((item) => item.product.id == productId);
-    if (index >= 0) {
-      final currentQty = _internalCartItems[index].quantity;
-      if (currentQty > 1) {
-        _internalCartItems[index] = _internalCartItems[index].copyWith(quantity: currentQty - 1);
-        _calculateAndEmitTotals();
-      }
-    }
-  }
+  OrderModel({
+    required this.id,
+    required this.items,
+    required this.total,
+    required this.address,
+    required this.date,
+  });
+}
 
-  void removeProduct(int productId) {
-    _internalCartItems.removeWhere((item) => item.product.id == productId);
-    _calculateAndEmitTotals();
-  }
+// ==========================================================================
+// 3. ORDER HISTORY FEATURE STATE MANAGEMENT
+// ==========================================================================
+class OrderCubit extends Cubit<List<OrderModel>> {
+  OrderCubit() : super([]);
 
-  void _calculateAndEmitTotals() {
-    // Requirement Met: Write updated array immediately to device storage cache
-    StorageService.saveCart(_internalCartItems);
-
-    if (_internalCartItems.isEmpty) {
-      emit(CartEmpty());
-      return;
-    }
-
-    double calculatedSubtotal = _internalCartItems.fold(0.0, (sum, item) => sum + item.totalLinePrice);
-    double calculatedVat = calculatedSubtotal * ApiConstants.vatPercentage;
-    double calculatedDelivery = _internalCartItems.length * ApiConstants.deliveryChargePerItem;
-    double calculatedGrandTotal = calculatedSubtotal + calculatedVat + calculatedDelivery;
-
-    emit(CartUpdated(
-      cartItems: List.from(_internalCartItems),
-      subtotal: calculatedSubtotal,
-      vatAmount: calculatedVat,
-      deliveryCharge: calculatedDelivery,
-      grandTotal: calculatedGrandTotal,
-    ));
+  void addOrder(List<ProductModel> items, double total, String address) {
+    final newOrder = OrderModel(
+      id: 'ORD-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      items: List.from(items),
+      total: total,
+      address: address,
+      date: DateTime.now(),
+    );
+    emit([newOrder, ...state]);
   }
 }

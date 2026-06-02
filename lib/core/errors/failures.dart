@@ -3,10 +3,10 @@ abstract class Failure {
   const Failure(this.message);
 }
 
-class NetworkFailure extends Failure {
-  const NetworkFailure(super.message);
+class ServerFailure extends Failure {
+  const ServerFailure([super.message = 'An unexpected server error occurred.']);
 }
 
-class ServerFailure extends Failure {
-  const ServerFailure(super.message);
+class CacheFailure extends Failure {
+  const CacheFailure([super.message = 'Failed to read or write local storage cache.']);
 }

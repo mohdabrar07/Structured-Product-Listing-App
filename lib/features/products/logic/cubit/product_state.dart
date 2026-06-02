@@ -1,57 +1,58 @@
-import '../../data/models/product_model.dart';
+import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
 
-// Sorting configuration options state criteria matrix
 enum SortOrder { none, priceLowToHigh, priceHighToLow }
 
-sealed class ProductState {}
+// 💡 CHANGE 'abstract' TO 'sealed' HERE
+sealed class ProductState {
+  const ProductState();
+}
 
-class ProductInitial extends ProductState {}
+class ProductInitial extends ProductState {
+  const ProductInitial();
+}
 
-class ProductLoadingState extends ProductState {}
-
-class ProductErrorState extends ProductState {
-  final String message;
-  ProductErrorState(this.message);
+class ProductLoadingState extends ProductState {
+  const ProductLoadingState();
 }
 
 class ProductSuccessState extends ProductState {
-  // Master cache: The original, pristine list untouched from the single API call
-  final List<Product> masterProducts;
-  
-  // Active UI list: The subset altered dynamically by search, sorting, or categories
-  final List<Product> displayedProducts;
-  
-  // Active UI Filtering Values
-  final List<String> categories;
-  final String selectedCategory;
-  final String searchQuery;
-  final SortOrder activeSortOrder;
+  final List<ProductModel> allProducts;
+  final List<ProductModel> displayedProducts;
+  final String? searchQuery;
+  final String? selectedCategory;
+  final SortOrder sortOrder;
 
-  ProductSuccessState({
-    required this.masterProducts,
+  const ProductSuccessState({
+    required this.allProducts,
     required this.displayedProducts,
-    required this.categories,
-    this.selectedCategory = 'All',
-    this.searchQuery = '',
-    this.activeSortOrder = SortOrder.none,
+    this.searchQuery,
+    this.selectedCategory,
+    this.sortOrder = SortOrder.none,
   });
 
-  // Structural state modifier matrix
+  List<String> get categories => allProducts
+      .map((product) => product.category ?? 'uncategorized')
+      .toSet()
+      .toList();
+
   ProductSuccessState copyWith({
-    List<Product>? masterProducts,
-    List<Product>? displayedProducts,
-    List<String>? categories,
-    String? selectedCategory,
+    List<ProductModel>? allProducts,
+    List<ProductModel>? displayedProducts,
     String? searchQuery,
-    SortOrder? activeSortOrder,
+    String? selectedCategory,
+    SortOrder? sortOrder,
   }) {
     return ProductSuccessState(
-      masterProducts: masterProducts ?? this.masterProducts,
+      allProducts: allProducts ?? this.allProducts,
       displayedProducts: displayedProducts ?? this.displayedProducts,
-      categories: categories ?? this.categories,
-      selectedCategory: selectedCategory ?? this.selectedCategory,
       searchQuery: searchQuery ?? this.searchQuery,
-      activeSortOrder: activeSortOrder ?? this.activeSortOrder,
+      selectedCategory: selectedCategory ?? this.selectedCategory,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
+}
+
+class ProductErrorState extends ProductState {
+  final String message;
+  const ProductErrorState(this.message);
 }

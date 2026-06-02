@@ -1,30 +1,35 @@
-import '../../data/models/cart_item_model.dart';
+import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
 
-sealed class CartState {}
+class CartItem {
+  final ProductModel product;
+  final int quantity;
 
-class CartInitial extends CartState {}
+  CartItem({required this.product, required this.quantity});
 
-class CartEmpty extends CartState {}
+  CartItem copyWith({ProductModel? product, int? quantity}) {
+    return CartItem(
+      product: product ?? this.product,
+      quantity: quantity ?? this.quantity,
+    );
+  }
 
-class CartError extends CartState {
-  final String errorMessage;
-  CartError(this.errorMessage);
+  Map<String, dynamic> toJson() => {
+    'product': product.toJson(),
+    'quantity': quantity,
+  };
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
+    product: ProductModel.fromJson(json['product']),
+    quantity: json['quantity'] as int,
+  );
 }
 
-class CartUpdated extends CartState {
+class CartState {
   final List<CartItem> cartItems;
-  
-  // Real-time computed totals
-  final double subtotal;
-  final double vatAmount;
-  final double deliveryCharge;
-  final double grandTotal;
 
-  CartUpdated({
-    required this.cartItems,
-    required this.subtotal,
-    required this.vatAmount,
-    required this.deliveryCharge,
-    required this.grandTotal,
-  });
+  const CartState({this.cartItems = const []});
+
+  double get totalPrice => cartItems.fold(0.0, (sum, element) => sum + ((element.product.price ?? 0) * element.quantity));
+
+  CartState copyWith({List<CartItem>? cartItems}) => CartState(cartItems: cartItems ?? this.cartItems);
 }

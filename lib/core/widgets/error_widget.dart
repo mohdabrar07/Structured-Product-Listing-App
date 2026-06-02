@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-class CustomErrorWidget extends StatelessWidget {
+class AppErrorWidget extends StatelessWidget {
   final String errorMessage;
   final VoidCallback onRetry;
 
-  const CustomErrorWidget({
+  const AppErrorWidget({
     super.key,
     required this.errorMessage,
     required this.onRetry,
@@ -18,33 +18,22 @@ class CustomErrorWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.wifi_off_rounded,
-              size: 64,
-              color: Colors.redAccent,
-            ),
-            const SizedBox(height: 16),
+            const Icon(Icons.error_outline, size: 54, color: Colors.redAccent),
+            const SizedBox(height: 14),
             Text(
               errorMessage,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black54,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(color: Colors.black54, fontSize: 14, height: 1.4),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Retry Execution'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.indigo,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             )
           ],

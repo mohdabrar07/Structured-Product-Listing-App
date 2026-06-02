@@ -7,8 +7,8 @@ class LoadingWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Center(
       child: CircularProgressIndicator(
+        color: Colors.indigo,
         strokeWidth: 3,
-        valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo),
       ),
     );
   }

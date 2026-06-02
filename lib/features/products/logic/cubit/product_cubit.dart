@@ -1,93 +1,71 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../data/repositories/product_repository.dart';
-import '../../data/models/product_model.dart';
-import 'product_state.dart';
+import 'package:structured_product_listing_app/features/products/data/models/product_model.dart'; // Ensure this import is here
+import 'package:structured_product_listing_app/features/products/logic/cubit/product_state.dart';
 
 class ProductCubit extends Cubit<ProductState> {
-  final ProductRepository repository;
+  final dynamic productRepository; 
 
-  ProductCubit({required this.repository}) : super(ProductInitial());
+  ProductCubit(this.productRepository) : super(const ProductInitial());
 
   Future<void> loadProducts() async {
-    emit(ProductLoadingState());
+    emit(const ProductLoadingState());
     try {
-      final List<Product> products = await repository.getProductsList();
+      final products = await productRepository.getProducts(); 
       
-      // Fixed: Added explicit <String> type map filtering to satisfy the strict compiler
-      final List<String> uniqueCategories = [
-        'All', 
-        ...products.map<String>((p) => p.category).toSet().toList()
-      ];
-
       emit(ProductSuccessState(
-        masterProducts: products,
+        allProducts: products,
         displayedProducts: products,
-        categories: uniqueCategories,
+        sortOrder: SortOrder.none,
       ));
-    } catch (e) {
-      emit(ProductErrorState('Failed to load store catalog. Please verify your connection.'));
+    } catch (failure) {
+      emit(ProductErrorState(failure.toString()));
     }
   }
 
   void updateSearchQuery(String query) {
     final currentState = state;
     if (currentState is ProductSuccessState) {
-      _applyFiltersAndSort(currentState.copyWith(searchQuery: query));
+      _filterAndSort(currentState.copyWith(searchQuery: query));
     }
   }
 
-  void updateCategory(String category) {
+  void updateCategory(String? category) {
     final currentState = state;
     if (currentState is ProductSuccessState) {
-      _applyFiltersAndSort(currentState.copyWith(selectedCategory: category));
+      _filterAndSort(currentState.copyWith(selectedCategory: category));
     }
   }
 
   void updateSortOrder(SortOrder order) {
     final currentState = state;
     if (currentState is ProductSuccessState) {
-      _applyFiltersAndSort(currentState.copyWith(activeSortOrder: order));
+      _filterAndSort(currentState.copyWith(sortOrder: order));
     }
   }
 
-  void _applyFiltersAndSort(ProductSuccessState baselineState) {
-    List<Product> runningFilteredList = List.from(baselineState.masterProducts);
+  void _filterAndSort(ProductSuccessState baselineState) {
+    // 💡 FIX: Using baselineState.allProducts.toList() explicitly retains List<ProductModel>
+    List<ProductModel> filtered = baselineState.allProducts.toList();
 
-    if (baselineState.selectedCategory != 'All') {
-      runningFilteredList = runningFilteredList
-          .where((p) => p.category.toLowerCase() == baselineState.selectedCategory.toLowerCase())
+    if (baselineState.selectedCategory != null && baselineState.selectedCategory!.isNotEmpty) {
+      filtered = filtered
+          .where((p) => (p.category ?? '').toLowerCase() == baselineState.selectedCategory!.toLowerCase())
           .toList();
     }
 
-    if (baselineState.searchQuery.isNotEmpty) {
-      runningFilteredList = runningFilteredList
-          .where((p) => p.title.toLowerCase().contains(baselineState.searchQuery.toLowerCase()))
+    if (baselineState.searchQuery != null && baselineState.searchQuery!.isNotEmpty) {
+      final query = baselineState.searchQuery!.toLowerCase();
+      filtered = filtered
+          .where((p) => (p.title ?? '').toLowerCase().contains(query))
           .toList();
     }
 
-    switch (baselineState.activeSortOrder) {
-      case SortOrder.priceLowToHigh:
-        runningFilteredList.sort((a, b) => a.price.compareTo(b.price));
-        break;
-      case SortOrder.priceHighToLow:
-        runningFilteredList.sort((a, b) => b.price.compareTo(a.price));
-        break;
-      case SortOrder.none:
-        break;
+    if (baselineState.sortOrder == SortOrder.priceLowToHigh) {
+      filtered.sort((a, b) => (a.price ?? 0.0).compareTo(b.price ?? 0.0));
+    } else if (baselineState.sortOrder == SortOrder.priceHighToLow) {
+      filtered.sort((a, b) => (b.price ?? 0.0).compareTo(a.price ?? 0.0));
     }
 
-    emit(baselineState.copyWith(displayedProducts: runningFilteredList));
-  }
-
-  Product? getProductDetailsFromCache(int id) {
-    final currentState = state;
-    if (currentState is ProductSuccessState) {
-      try {
-        return currentState.masterProducts.firstWhere((element) => element.id == id);
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
+    emit(baselineState.copyWith(displayedProducts: filtered));
   }
 }
