@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart'; // 💡 NEW IMPORT: Required to check if target device is a web browser (kIsWeb)
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:path_provider/path_provider.dart';
 
 // Services & Core Configuration
 import 'package:structured_product_listing_app/core/services/storage_service.dart';
@@ -9,7 +12,7 @@ import 'package:structured_product_listing_app/features/products/data/repositori
 // State Management Cubits
 import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart';
 import 'package:structured_product_listing_app/features/products/logic/cubit/product_cubit.dart';
-import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart'; // 💡 OrderCubit comes from here now
+import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart'; // OrderCubit comes from here
 import 'package:structured_product_listing_app/features/wishlist/logic/cubit/wishlist_cubit.dart';
 import 'package:structured_product_listing_app/features/address/logic/cubit/address_cubit.dart';
 
@@ -20,6 +23,22 @@ import 'package:structured_product_listing_app/features/home/presentation/screen
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 🛠️ SAFE STORAGE FOR BOTH MOBILE AND WEB (Avoids browser execution of getApplicationDocumentsDirectory)
+  final HydratedStorageDirectory storageDirectory;
+  
+  if (kIsWeb) {
+    storageDirectory = HydratedStorageDirectory.web;
+  } else {
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    storageDirectory = HydratedStorageDirectory(documentsDirectory.path);
+  }
+
+  // Initialize the Hydrated Local Storage backend
+  HydratedBloc.storage = await HydratedStorage.build(
+    storageDirectory: storageDirectory,
+  );
+
+  // Initialize your existing Custom Local Services
   final storageService = StorageService();
   await storageService.init();
 

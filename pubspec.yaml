@@ -40,7 +40,7 @@ dependencies:
 
   hive_ce: any
   hive_ce_flutter: any
-
+  hydrated_bloc: ^11.0.0
   path_provider: ^2.1.5
 dev_dependencies:
   flutter_test:

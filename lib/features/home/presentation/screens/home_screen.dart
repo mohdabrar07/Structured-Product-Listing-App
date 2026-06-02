@@ -22,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedCategory;
 
   final List<String> _titles = [
-    'Discover Products',
+    'Mega Store',
     'My Wishlist',
     'Shopping Cart',
     'My Profile',
@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
     String userEmail = authState is Authenticated ? authState.email : "Guest User";
 
     final List<Widget> pages = [
-      _buildProductsTab(),
+      _buildShopTabHomePage(),
       _buildWishlistTab(wishlistItems),
       _buildCartTab(cartItems),
       _buildProfileTab(userEmail),
@@ -46,19 +46,23 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _selectedCategory != null && _currentIndex == 0
-              ? _selectedCategory!.toUpperCase()
-              : _titles[_currentIndex], 
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          _titles[_currentIndex], 
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, letterSpacing: 0.5),
         ),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        leading: _selectedCategory != null && _currentIndex == 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
+        actions: [
+          if (_currentIndex == 0 && _selectedCategory != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ActionChip(
+                label: Text('Clear: $_selectedCategory', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                backgroundColor: Colors.indigo.shade400,
+                side: BorderSide.none,
                 onPressed: () => setState(() => _selectedCategory = null),
-              )
-            : null,
+              ),
+            )
+        ],
+        backgroundColor: Colors.indigo.shade700,
+        foregroundColor: Colors.white,
       ),
       body: IndexedStack(
         index: _currentIndex,
@@ -68,31 +72,30 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.indigo,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: Colors.indigo.shade700,
+        unselectedItemColor: Colors.grey.shade500,
+        showUnselectedLabels: true,
+        elevation: 15,
         items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Shop'),
+          const BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: 'Shop'),
           BottomNavigationBarItem(
-            icon: CustomBadge(
-              count: wishlistItems.length,
-              child: const Icon(Icons.favorite_border),
-            ),
+            icon: CustomBadge(count: wishlistItems.length, child: const Icon(Icons.favorite)),
             label: 'Wishlist',
           ),
           BottomNavigationBarItem(
-            icon: CustomBadge(
-              count: cartItems.length,
-              child: const Icon(Icons.shopping_cart_outlined),
-            ),
+            icon: CustomBadge(count: cartItems.length, child: const Icon(Icons.shopping_cart)),
             label: 'Cart',
           ),
-          const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+          const BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Profile'),
         ],
       ),
     );
   }
 
-  Widget _buildProductsTab() {
+  // ==========================================================================
+  // UPDATED RICH HOME STOREFRONT TAB MODIFICATIONS
+  // ==========================================================================
+  Widget _buildShopTabHomePage() {
     return BlocBuilder<ProductCubit, ProductState>(
       builder: (context, state) {
         if (state is ProductLoadingState) return const Center(child: CircularProgressIndicator(color: Colors.indigo));
@@ -100,111 +103,113 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (state is ProductSuccessState) {
           final List<ProductModel> allProducts = state.allProducts;
-          if (allProducts.isEmpty) return const Center(child: Text('No products found.'));
+          if (allProducts.isEmpty) return const Center(child: Text('No storefront items active.'));
 
-          // 1. CATEGORIES VIEW
-          if (_selectedCategory == null) {
-            return GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, 
-                crossAxisSpacing: 14, 
-                mainAxisSpacing: 14, 
-                childAspectRatio: 1.1
-              ),
-              itemCount: state.categories.length,
-              itemBuilder: (context, index) {
-                final cat = state.categories[index];
-                return InkWell(
-                  onTap: () => setState(() => _selectedCategory = cat),
-                  child: Card(
-                    color: Colors.indigo.shade50,
-                    child: Center(
-                      child: Text(cat.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-                    ),
-                  ),
-                );
-              },
-            );
-          }
+          // Calculate sub-lists for layout blocks
+          final trendingProducts = allProducts.reversed.take(6).toList();
+          final displayedGridProducts = _selectedCategory == null 
+              ? allProducts 
+              : allProducts.where((p) => p.category == _selectedCategory).toList();
 
-          // 2. PRODUCT LIST VIEW (MODIFIED FROM LIST TO E-COMMERCE GRID)
-          final filteredProducts = allProducts.where((p) => (p.category ?? 'uncategorized') == _selectedCategory).toList();
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. PROMOTIONAL ADS BANNER CARD HERO PANEL
+                _buildPromoBannerCard(),
 
-          if (filteredProducts.isEmpty) {
-            return const Center(child: Text('No products available in this category.'));
-          }
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,          // Shows 2 items per row (perfect for seeing 4-6 cards on screen)
-              crossAxisSpacing: 12,       // Horizontal gap spacing between grid elements
-              mainAxisSpacing: 12,        // Vertical gap spacing between grid elements
-              childAspectRatio: 0.76,     // Dictates specific card height-to-width proportions
-            ),
-            itemCount: filteredProducts.length,
-            itemBuilder: (context, index) {
-              final product = filteredProducts[index];
-              return Card(
-                elevation: 1.5,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
-                    );
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Product Image Container Panel
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          color: Colors.white,
-                          width: double.infinity,
-                          child: Image.network(
-                            product.image ?? '',
-                            fit: BoxFit.contain,
+                // 2. HORIZONTAL CATEGORIES QUICK SELECT BAR
+                const Padding(
+                  padding: EdgeInsets.only(left: 16, top: 20, bottom: 10),
+                  child: Text('Browse Categories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.3)),
+                ),
+                SizedBox(
+                  height: 45,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: state.categories.length,
+                    itemBuilder: (context, index) {
+                      final categoryName = state.categories[index];
+                      final isSelected = _selectedCategory == categoryName;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: ChoiceChip(
+                          label: Text(categoryName.toUpperCase()),
+                          selected: isSelected,
+                          selectedColor: Colors.indigo.shade700,
+                          backgroundColor: Colors.grey.shade200,
+                          labelStyle: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
                           ),
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedCategory = selected ? categoryName : null;
+                            });
+                          },
                         ),
-                      ),
-                      // Product Metadata Label Stack
-                      Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              product.title ?? '',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                height: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '\$${(product.price ?? 0).toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: Colors.indigo,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-              );
-            },
+
+                // 3. HORIZONTAL TRENDING OFFERS CAROUSEL BLOCK (Hidden when filtering categories)
+                if (_selectedCategory == null) ...[
+                  const Padding(
+                    padding: EdgeInsets.only(left: 16, top: 24, bottom: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.bolt, color: Colors.orange, size: 24),
+                        SizedBox(width: 6),
+                        Text('Trending Now', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.3)),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 190,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: trendingProducts.length,
+                      itemBuilder: (context, index) {
+                        final product = trendingProducts[index];
+                        return _buildTrendingHorizontalCard(product);
+                      },
+                    ),
+                  ),
+                ],
+
+                // 4. MAIN ITEMS DYNAMIC PRODUCT LIST INTERFACE PANEL
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 26, bottom: 12),
+                  child: Text(
+                    _selectedCategory == null ? 'Our Recommendations' : 'Filtered Results (${displayedGridProducts.length})', 
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                  ),
+                ),
+                
+                GridView.builder(
+  shrinkWrap: true,
+  physics: const NeverScrollableScrollPhysics(),
+  // 🛠️ FIXED: Replaced horizontal parameter with left and right parameters
+  padding: const EdgeInsets.only(left: 12, right: 12, bottom: 24), 
+  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 2,
+    crossAxisSpacing: 12,
+    mainAxisSpacing: 12,
+    childAspectRatio: 0.74,
+  ),
+  itemCount: displayedGridProducts.length,
+  itemBuilder: (context, index) {
+    final product = displayedGridProducts[index];
+    return _buildStandardGridProductCard(product);
+  },
+),
+              ],
+            ),
           );
         }
         return const Center(child: Text('Unknown State'));
@@ -212,6 +217,123 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildPromoBannerCard() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.indigo.shade800, Colors.purple.shade700],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.indigo.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+            child: const Text('SUMMER SALE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          ),
+          const SizedBox(height: 12),
+          const Text('Up to 50% OFF\non Elite Gadgets', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, height: 1.2)),
+          const SizedBox(height: 8),
+          Text('Free global distribution terms applied to items standard over \$50.', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrendingHorizontalCard(ProductModel product) {
+    return Container(
+      width: 140,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Card(
+        elevation: 2,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product))),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.network(product.image ?? '', fit: BoxFit.contain, height: 75),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(product.title ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(height: 2),
+                Text('\$${(product.price ?? 0).toStringAsFixed(2)}', style: TextStyle(color: Colors.indigo.shade700, fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStandardGridProductCard(ProductModel product) {
+    return Card(
+      elevation: 1.5,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product))),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                color: Colors.white,
+                width: double.infinity,
+                child: Image.network(product.image ?? '', fit: BoxFit.contain),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.title ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, height: 1.2),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '\$${(product.price ?? 0).toStringAsFixed(2)}',
+                        style: TextStyle(color: Colors.indigo.shade700, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      Icon(Icons.add_circle, color: Colors.indigo.shade700, size: 22),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // UNCHANGED FEATURES SECURE STORAGE RESTORATION HOOKS
+  // ==========================================================================
   Widget _buildWishlistTab(List<ProductModel> items) {
     if (items.isEmpty) return const Center(child: Text('Your Wishlist is empty.'));
     return ListView.builder(
@@ -237,9 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCartTab(List<ProductModel> items) {
     if (items.isEmpty) return const Center(child: Text('Your Shopping Cart is empty.'));
-    
     double total = items.fold(0, (sum, item) => sum + (item.price ?? 0.0));
-
     return Column(
       children: [
         Expanded(
@@ -281,12 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CheckoutScreen(cartItems: items, totalAmount: total),
-                      ),
-                    );
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => CheckoutScreen(cartItems: items, totalAmount: total)));
                   },
                   child: const Text('PROCEED TO CHECKOUT', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
@@ -319,7 +434,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -349,7 +463,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
           const Text('My Orders History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
           if (orderHistory.isEmpty)
