@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart';
 import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart';
 import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
 import 'package:structured_product_listing_app/features/cart/presentation/screens/checkout_screen.dart';
@@ -9,6 +10,10 @@ class CartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🛠️ FIXED: Fetch the active logged-in user email
+    final authState = context.watch<AuthCubit>().state;
+    final String userEmail = authState is Authenticated ? authState.email : "Guest";
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
@@ -17,8 +22,12 @@ class CartScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
       ),
-      body: BlocBuilder<CartCubit, List<ProductModel>>(
-        builder: (context, cartList) {
+      // 🛠️ FIXED: Listened to the updated Map state rather than a flat List
+      body: BlocBuilder<CartCubit, Map<String, List<dynamic>>>(
+        builder: (context, state) {
+          // 🛠️ FIXED: Pull items explicitly using our multi-user helper method
+          final List<ProductModel> cartList = context.read<CartCubit>().getCartForUser(userEmail);
+
           if (cartList.isEmpty) {
             return Center(
               child: Column(
@@ -83,13 +92,14 @@ class CartScreen extends StatelessWidget {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.remove_circle_outline), 
-                            // In our flat list, removing an item naturally decrements the count by one
-                            onPressed: () => context.read<CartCubit>().removeFromCart(product),
+                            // 🛠️ FIXED: Added userEmail as required parameter
+                            onPressed: () => context.read<CartCubit>().removeFromCart(userEmail, product),
                           ),
                           Text('$quantity', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           IconButton(
                             icon: const Icon(Icons.add_circle_outline), 
-                            onPressed: () => context.read<CartCubit>().addToCart(product),
+                            // 🛠️ FIXED: Added userEmail as required parameter
+                            onPressed: () => context.read<CartCubit>().addToCart(userEmail, product),
                           ),
                         ],
                       )
@@ -101,8 +111,11 @@ class CartScreen extends StatelessWidget {
           );
         },
       ),
-      bottomNavigationBar: BlocBuilder<CartCubit, List<ProductModel>>(
-        builder: (context, cartList) {
+      // 🛠️ FIXED: Updated bottom bar listener type block to match Map state architecture
+      bottomNavigationBar: BlocBuilder<CartCubit, Map<String, List<dynamic>>>(
+        builder: (context, state) {
+          final List<ProductModel> cartList = context.read<CartCubit>().getCartForUser(userEmail);
+
           if (cartList.isEmpty) return const SizedBox.shrink();
 
           // Calculate the total bill dynamically from the list state

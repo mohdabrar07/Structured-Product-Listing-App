@@ -62,20 +62,32 @@ class ProfileScreen extends StatelessWidget {
             // Live Reactive Shipping Address Component Frame
             const Text('Configured Logistics Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black54)),
             const SizedBox(height: 8),
-            BlocBuilder<AddressCubit, String>(
-              builder: (context, address) {
+            
+            // 🛠️ FIXED: Changed type argument bound from String to Map<String, String>
+            BlocBuilder<AddressCubit, Map<String, String>>(
+              builder: (context, addressMap) {
+                // 🛠️ FIXED: Extract specific user value safely from state dictionary Map
+                final String currentAddress = addressMap[userEmail] ?? '';
+
                 return Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                  decoration: BoxDecoration(
+                    color: Colors.white, 
+                    borderRadius: BorderRadius.circular(12), 
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
                   child: Row(
                     children: [
                       const Icon(Icons.location_on_outlined, color: Colors.indigo),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          address.isEmpty ? "No active logistical address saved yet." : address,
-                          style: TextStyle(fontSize: 14, color: address.isEmpty ? Colors.grey : Colors.black87),
+                          currentAddress.isEmpty ? "No active logistical address saved yet." : currentAddress,
+                          style: TextStyle(
+                            fontSize: 14, 
+                            color: currentAddress.isEmpty ? Colors.grey : Colors.black87,
+                          ),
                         ),
                       ),
                       IconButton(

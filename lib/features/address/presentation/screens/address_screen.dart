@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart';
 import 'package:structured_product_listing_app/features/address/logic/cubit/address_cubit.dart';
 
 class AddressScreen extends StatelessWidget {
@@ -8,6 +9,10 @@ class AddressScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textController = TextEditingController();
+    
+    // Fetch current user email safely
+    final authState = context.watch<AuthCubit>().state;
+    final String currentUserEmail = authState is Authenticated ? authState.email : "Guest";
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -19,7 +24,15 @@ class AddressScreen extends StatelessWidget {
           children: [
             const Text('Current Location Target:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(height: 4),
-            BlocBuilder<AddressCubit, String>(builder: (context, val) => Text(val, style: const TextStyle(color: Colors.indigo))),
+            BlocBuilder<AddressCubit, Map<String, String>>(
+              builder: (context, addressMap) {
+                final userAddress = context.read<AddressCubit>().getAddressForUser(currentUserEmail);
+                return Text(
+                  userAddress.isEmpty ? "No address stored yet." : userAddress, 
+                  style: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)
+                );
+              }
+            ),
             const SizedBox(height: 24),
             TextField(
               controller: textController,
@@ -31,7 +44,7 @@ class AddressScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {
                   if (textController.text.isNotEmpty) {
-                    context.read<AddressCubit>().saveUserShippingAddress(textController.text);
+                    context.read<AddressCubit>().saveUserShippingAddress(currentUserEmail, textController.text);
                     Navigator.pop(context);
                   }
                 },

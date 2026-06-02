@@ -2,51 +2,58 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
 
 // ==========================================================================
-// 1. PERSISTENT CART CUBIT IMPLEMENTATION
+// MULTI-USER SEPARATED CART CUBIT
 // ==========================================================================
-class CartCubit extends HydratedCubit<List<ProductModel>> {
-  CartCubit() : super([]);
+class CartCubit extends HydratedCubit<Map<String, List<dynamic>>> {
+  // State: { "user@email.com": [ProductModel, ProductModel] }
+  CartCubit() : super({});
 
-  void addToCart(ProductModel product) {
-    emit([...state, product]);
+  List<ProductModel> getCartForUser(String email) {
+    final list = state[email] ?? [];
+    return list.map((item) => ProductModel.fromJson(Map<String, dynamic>.from(item))).toList();
   }
 
-  void removeFromCart(ProductModel product) {
-    final updated = List<ProductModel>.from(state)..remove(product);
-    emit(updated);
+  void addToCart(String email, ProductModel product) {
+    final currentMap = Map<String, List<dynamic>>.from(state);
+    final userCart = List<dynamic>.from(currentMap[email] ?? []);
+    userCart.add(product.toJson());
+    currentMap[email] = userCart;
+    emit(currentMap);
   }
 
-  void clearCart() {
-    emit([]);
+  void removeFromCart(String email, ProductModel product) {
+    final currentMap = Map<String, List<dynamic>>.from(state);
+    final userCart = List<dynamic>.from(currentMap[email] ?? []);
+    
+    userCart.removeWhere((item) => ProductModel.fromJson(Map<String, dynamic>.from(item)).id == product.id);
+    currentMap[email] = userCart;
+    emit(currentMap);
   }
 
-  // Deserializes data from disk storage when application boots up
+  void clearCart(String email) {
+    final currentMap = Map<String, List<dynamic>>.from(state);
+    currentMap[email] = [];
+    emit(currentMap);
+  }
+
   @override
-  List<ProductModel>? fromJson(Map<String, dynamic> json) {
+  Map<String, List<dynamic>>? fromJson(Map<String, dynamic> json) {
     try {
-      // 💡 Added print log to see when browser reads cart data
-      print("📦 HYDRATED_BLOC (CART): Reading Cart Data from Browser Database...");
-      final itemsList = json['cart_items'] as List<dynamic>;
-      return itemsList.map((item) => ProductModel.fromJson(item as Map<String, dynamic>)).toList();
-    } catch (e) {
-      print("⚠️ HYDRATED_BLOC (CART): Read Error: $e");
-      return [];
+      final rawMap = json['user_carts'] as Map<String, dynamic>? ?? {};
+      return rawMap.map((key, value) => MapEntry(key, List<dynamic>.from(value)));
+    } catch (_) {
+      return {};
     }
   }
 
-  // Serializes changes into memory every single time a state mutation emits
   @override
-  Map<String, dynamic>? toJson(List<ProductModel> state) {
-    // 💡 Added print log to see when browser saves cart data
-    print("💾 HYDRATED_BLOC (CART): Writing Cart Data directly to Browser Storage!");
-    return {
-      'cart_items': state.map((item) => item.toJson()).toList(),
-    };
+  Map<String, dynamic>? toJson(Map<String, List<dynamic>> state) {
+    return {'user_carts': state};
   }
 }
 
 // ==========================================================================
-// 2. DATA SCHEMA DEFINITION
+// DATA ORDER MODEL SCHEMA
 // ==========================================================================
 class OrderModel {
   final String id;
@@ -85,12 +92,21 @@ class OrderModel {
 }
 
 // ==========================================================================
-// 3. PERSISTENT ORDER HISTORY CUBIT IMPLEMENTATION
+// MULTI-USER SEPARATED ORDER HISTORY CUBIT
 // ==========================================================================
-class OrderCubit extends HydratedCubit<List<OrderModel>> {
-  OrderCubit() : super([]);
+class OrderCubit extends HydratedCubit<Map<String, List<dynamic>>> {
+  // State: { "user@email.com": [OrderModelJson, OrderModelJson] }
+  OrderCubit() : super({});
 
-  void addOrder(List<ProductModel> items, double total, String address) {
+  List<OrderModel> getOrdersForUser(String email) {
+    final list = state[email] ?? [];
+    return list.map((item) => OrderModel.fromMap(Map<String, dynamic>.from(item))).toList();
+  }
+
+  void addOrder(String email, List<ProductModel> items, double total, String address) {
+    final currentMap = Map<String, List<dynamic>>.from(state);
+    final userOrders = List<dynamic>.from(currentMap[email] ?? []);
+
     final newOrder = OrderModel(
       id: 'ORD-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
       items: List.from(items),
@@ -98,28 +114,24 @@ class OrderCubit extends HydratedCubit<List<OrderModel>> {
       address: address,
       date: DateTime.now(),
     );
-    emit([newOrder, ...state]);
+
+    userOrders.insert(0, newOrder.toMap());
+    currentMap[email] = userOrders;
+    emit(currentMap);
   }
 
   @override
-  List<OrderModel>? fromJson(Map<String, dynamic> json) {
+  Map<String, List<dynamic>>? fromJson(Map<String, dynamic> json) {
     try {
-      // 💡 Added print log to see when browser reads order history
-      print("📦 HYDRATED_BLOC (ORDERS): Reading Order History from Browser Database...");
-      final orderHistory = json['orders'] as List<dynamic>;
-      return orderHistory.map((item) => OrderModel.fromMap(item as Map<String, dynamic>)).toList();
-    } catch (e) {
-      print("⚠️ HYDRATED_BLOC (ORDERS): Read Error: $e");
-      return [];
+      final rawMap = json['user_orders'] as Map<String, dynamic>? ?? {};
+      return rawMap.map((key, value) => MapEntry(key, List<dynamic>.from(value)));
+    } catch (_) {
+      return {};
     }
   }
 
   @override
-  Map<String, dynamic>? toJson(List<OrderModel> state) {
-    // 💡 Added print log to see when browser saves order history
-    print("💾 HYDRATED_BLOC (ORDERS): Writing Order History directly to Browser Storage!");
-    return {
-      'orders': state.map((item) => item.toMap()).toList(),
-    };
+  Map<String, dynamic>? toJson(Map<String, List<dynamic>> state) {
+    return {'user_orders': state};
   }
 }
