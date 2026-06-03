@@ -18,13 +18,14 @@ class AuthError extends AuthState {}
 // --- AUTHENTICATION CUBIT ---
 class AuthCubit extends Cubit<AuthState> {
   final StorageService storageService;
+  static const String _userEmailKey = 'user_email'; // 💡 Using a constant prevents typing mistakes later
 
   AuthCubit(this.storageService) : super(AuthInitial());
 
   /// Checks if a session exists on app startup
   void checkAuthenticationSession() {
     try {
-      final String? email = storageService.retrieveData('user_email');
+      final String? email = storageService.retrieveData(_userEmailKey);
       if (email != null && email.isNotEmpty) {
         emit(Authenticated(email));
       } else {
@@ -35,17 +36,28 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  /// Updates the application state to Authenticated when login succeeds
-  void loginUserInState(String email) {
-    emit(Authenticated(email));
+  /// Updates the application state AND saves data to disk when login succeeds
+  // 🛠️ FIXED: Made this async to properly write to persistent local storage
+  Future<void> loginUserInState(String email) async {
+    try {
+      // 💾 Save to disk so checkAuthenticationSession() can read it next time!
+      await storageService.persistData(_userEmailKey, email);
+      emit(Authenticated(email));
+    } catch (_) {
+      emit(AuthError());
+    }
   }
 
   /// Clears the persistent session data and forces an Unauthenticated state change
-  void logoutUserPermanently() async {
-    // Overwrite storage keys with null to wipe the persistent state cache
-    await storageService.persistData('user_email', null);
-    await storageService.persistData('auth_token', null);
-    
-    emit(Unauthenticated());
+  Future<void> logoutUserPermanently() async {
+    try {
+      // Overwrite storage keys with null to wipe the persistent state cache
+      await storageService.persistData(_userEmailKey, null);
+      await storageService.persistData('auth_token', null);
+    } catch (_) {
+      // Log error if storage service fails, but proceed to force UI logout anyway
+    } finally {
+      emit(Unauthenticated());
+    }
   }
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart'; // 💡 NEW IMPORT: Required to check if target device is a web browser (kIsWeb)
+import 'package:flutter/foundation.dart'; 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
@@ -12,7 +12,7 @@ import 'package:structured_product_listing_app/features/products/data/repositori
 // State Management Cubits
 import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart';
 import 'package:structured_product_listing_app/features/products/logic/cubit/product_cubit.dart';
-import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart'; // OrderCubit comes from here
+import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart'; 
 import 'package:structured_product_listing_app/features/wishlist/logic/cubit/wishlist_cubit.dart';
 import 'package:structured_product_listing_app/features/address/logic/cubit/address_cubit.dart';
 
@@ -23,7 +23,6 @@ import 'package:structured_product_listing_app/features/home/presentation/screen
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🛠️ SAFE STORAGE FOR BOTH MOBILE AND WEB (Avoids browser execution of getApplicationDocumentsDirectory)
   final HydratedStorageDirectory storageDirectory;
   
   if (kIsWeb) {
@@ -33,12 +32,10 @@ void main() async {
     storageDirectory = HydratedStorageDirectory(documentsDirectory.path);
   }
 
-  // Initialize the Hydrated Local Storage backend
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: storageDirectory,
   );
 
-  // Initialize your existing Custom Local Services
   final storageService = StorageService();
   await storageService.init();
 
@@ -70,6 +67,7 @@ class MyApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider<AuthCubit>(
+            // 💡 TRIGGER IMMEDIATE SESSION LOOKUP: Ensures asynchronous token validation starts spinning right away
             create: (_) => AuthCubit(storageService)..checkAuthenticationSession(), 
           ),
           BlocProvider<ProductCubit>(
@@ -110,15 +108,26 @@ class AppNavigationGatekeeper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, state) {
+        // 🛠️ FIXED: Handle session persistence validation routing safely
         if (state is Authenticated) {
           return const HomeScreen();
         }
+        
         if (state is Unauthenticated || state is AuthError) {
           return const LoginScreen();
         }
+
+        // 💡 EXPLICIT GATING STATE: Holds UI tree rendering on a splash loader until filesystem I/O verification returns true/false
         return const Scaffold(
           body: Center(
-            child: CircularProgressIndicator(color: Colors.indigo),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.indigo),
+                SizedBox(height: 16),
+                Text("Restoring session data...", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+              ],
+            ),
           ),
         );
       },
