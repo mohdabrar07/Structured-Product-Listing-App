@@ -17,7 +17,8 @@ class ProductDetailScreen extends StatelessWidget {
     final cartItems = context.watch<CartCubit>().getCartForUser(userEmail);
     final isInCart = cartItems.any((item) => item.id == product.id);
 
-    final wishlist = context.watch<WishlistCubit>().state;
+    // 🛠️ FIXED: Pull the user's specific items list using the updated map mapping logic
+    final wishlist = context.watch<WishlistCubit>().getWishlistForUser(userEmail);
     final isInWishlist = wishlist.any((item) => item.id == product.id);
 
     return Scaffold(
@@ -26,7 +27,8 @@ class ProductDetailScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: Icon(isInWishlist ? Icons.favorite : Icons.favorite_border, color: isInWishlist ? Colors.red : null),
-            onPressed: () => context.read<WishlistCubit>().toggleWishlist(product),
+            // 🛠️ FIXED: Pass userEmail to handle the map update workflow
+            onPressed: () => context.read<WishlistCubit>().toggleWishlist(userEmail, product),
           )
         ],
       ),

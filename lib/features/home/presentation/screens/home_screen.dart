@@ -22,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   String? _selectedCategory;
   String _searchQuery = ""; 
+  String _selectedSortOption = "Default"; // 💡 NEW: Holds current active sorting method
   final TextEditingController _searchController = TextEditingController();
 
   final List<String> _titles = [
@@ -36,12 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final authState = context.watch<AuthCubit>().state;
     final String userEmail = authState is Authenticated ? authState.email : "Guest User";
 
-    final wishlistItems = context.watch<WishlistCubit>().state;
+    final wishlistItems = context.watch<WishlistCubit>().getWishlistForUser(userEmail);
     final cartItems = context.watch<CartCubit>().getCartForUser(userEmail);
     
     final List<Widget> pages = [
       _buildShopTabHomePage(userEmail),
-      _buildWishlistTab(wishlistItems),
+      _buildWishlistTab(userEmail, wishlistItems),
       _buildCartTab(userEmail, cartItems),
       _buildProfileTab(userEmail),
     ];
@@ -50,7 +51,24 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(_titles[_currentIndex], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
         actions: [
-          if (_currentIndex == 0 && (_selectedCategory != null || _searchQuery.isNotEmpty))
+          // 💡 NEW: Sort Actions Dropdown Menu Button visible on Shop Tab
+          if (_currentIndex == 0)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.sort),
+              tooltip: "Sort Products",
+              onSelected: (String value) {
+                setState(() {
+                  _selectedSortOption = value;
+                });
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(value: 'Default', child: Text('Default Sorting')),
+                const PopupMenuItem<String>(value: 'PriceLowHigh', child: Text('Price: Low to High')),
+                const PopupMenuItem<String>(value: 'PriceHighLow', child: Text('Price: High to Low')),
+                const PopupMenuItem<String>(value: 'NameAZ', child: Text('Name: A to Z')),
+              ],
+            ),
+          if (_currentIndex == 0 && (_selectedCategory != null || _searchQuery.isNotEmpty || _selectedSortOption != "Default"))
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: ActionChip(
@@ -61,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   setState(() {
                     _selectedCategory = null;
                     _searchQuery = "";
+                    _selectedSortOption = "Default";
                     _searchController.clear();
                   });
                 },
@@ -97,11 +116,21 @@ class _HomeScreenState extends State<HomeScreen> {
           final List<ProductModel> allProducts = state.allProducts;
           if (allProducts.isEmpty) return const Center(child: Text('No storefront items active.'));
 
+          // Filter items based on criteria first
           var displayedGridProducts = allProducts.where((product) {
             final matchesCategory = _selectedCategory == null || product.category == _selectedCategory;
             final matchesSearch = product.title?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? true;
             return matchesCategory && matchesSearch;
           }).toList();
+
+          // 💡 NEW: Apply sorting mechanics to the filtered list layout
+          if (_selectedSortOption == 'PriceLowHigh') {
+            displayedGridProducts.sort((a, b) => (a.price ?? 0).compareTo(b.price ?? 0));
+          } else if (_selectedSortOption == 'PriceHighLow') {
+            displayedGridProducts.sort((a, b) => (b.price ?? 0).compareTo(a.price ?? 0));
+          } else if (_selectedSortOption == 'NameAZ') {
+            displayedGridProducts.sort((a, b) => (a.title ?? '').compareTo(b.title ?? ''));
+          }
 
           final trendingProducts = allProducts.reversed.take(6).toList();
 
@@ -112,7 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildPromoBannerCard(),
 
-                // 🛠️ FIXED: Container wraps TextField to support physical BoxShadow
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Container(
@@ -287,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildWishlistTab(List<ProductModel> items) {
+  Widget _buildWishlistTab(String email, List<ProductModel> items) {
     if (items.isEmpty) return const Center(child: Text('Your Wishlist is empty.'));
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -298,7 +326,10 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListTile(
             leading: Image.network(product.image ?? '', width: 50, fit: BoxFit.contain),
             title: Text(product.title ?? ''),
-            trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => context.read<WishlistCubit>().toggleWishlist(product)),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red), 
+              onPressed: () => context.read<WishlistCubit>().toggleWishlist(email, product),
+            ),
           ),
         );
       },

@@ -3,45 +3,64 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_product_listing_app/core/services/storage_service.dart';
 import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
 
-class WishlistCubit extends Cubit<List<ProductModel>> {
+class WishlistCubit extends Cubit<Map<String, List<ProductModel>>> {
   final StorageService _storageService;
-  static const String _wishlistKey = 'cached_user_wishlist_items';
+  static const String _wishlistKey = 'cached_user_multi_wishlists';
 
-  WishlistCubit(this._storageService) : super([]) {
+  WishlistCubit(this._storageService) : super({}) {
     _hydrateWishlistFromStorage();
   }
 
-  /// Reads persistent string indexes directly out of the primary Hive storage file
+  /// Reads global storage and builds the multi-user wishlist directory map safely
   void _hydrateWishlistFromStorage() {
     try {
       final rawData = _storageService.retrieveData(_wishlistKey);
       if (rawData != null && rawData is String) {
-        final List<dynamic> decoded = jsonDecode(rawData);
-        final products = decoded.map((item) => ProductModel.fromJson(item)).toList();
-        emit(products);
+        final Map<String, dynamic> decodedMap = jsonDecode(rawData);
+        
+        final Map<String, List<ProductModel>> parsedState = {};
+        decodedMap.forEach((email, listData) {
+          final List<dynamic> rawList = listData;
+          parsedState[email] = rawList.map((item) => ProductModel.fromJson(item)).toList();
+        });
+        
+        emit(parsedState);
       }
     } catch (_) {}
   }
 
-  /// Commits updates to disk
-  Future<void> _persistWishlistToCache(List<ProductModel> currentList) async {
-    final mappedList = currentList.map((item) => item.toJson()).toList();
-    final jsonString = jsonEncode(mappedList);
+  /// Commits updates to structural storage
+  Future<void> _persistWishlistToCache(Map<String, List<ProductModel>> currentMap) async {
+    final Map<String, dynamic> serializableMap = {};
+    currentMap.forEach((email, productsList) {
+      serializableMap[email] = productsList.map((item) => item.toJson()).toList();
+    });
+    
+    final jsonString = jsonEncode(serializableMap);
     await _storageService.persistData(_wishlistKey, jsonString);
   }
 
-  /// Toggles the favorite status of a item, saving the updated list locally
-  void toggleWishlist(ProductModel targetProduct) {
-    final currentList = List<ProductModel>.from(state);
-    final existsIndex = currentList.indexWhere((element) => element.id == targetProduct.id);
+  /// Gets isolation list bound exclusively to the parameter identity profile
+  List<ProductModel> getWishlistForUser(String email) {
+    return state[email] ?? [];
+  }
+
+  /// Toggles favorite status under the authenticated user space scope
+  void toggleWishlist(String email, ProductModel targetProduct) {
+    final currentMap = Map<String, List<ProductModel>>.from(state);
+    final userWishlist = List<ProductModel>.from(currentMap[email] ?? []);
+
+    final existsIndex = userWishlist.indexWhere((element) => element.id == targetProduct.id);
 
     if (existsIndex >= 0) {
-      currentList.removeAt(existsIndex);
+      userWishlist.removeAt(existsIndex);
     } else {
-      currentList.add(targetProduct);
+      userWishlist.add(targetProduct);
     }
 
-    emit(currentList);
-    _persistWishlistToCache(currentList);
+    currentMap[email] = userWishlist;
+    
+    emit(currentMap);
+    _persistWishlistToCache(currentMap);
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart'; // 💡 NEW IMPORT: Required to find the active logged-in user email
 import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
 import 'package:structured_product_listing_app/features/products/presentation/screens/product_detail_screen.dart';
 import 'package:structured_product_listing_app/features/wishlist/logic/cubit/wishlist_cubit.dart';
@@ -12,6 +13,10 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final originalPrice = (product.price ?? 0) * 1.35;
+
+    // 🛠️ FIXED: Secure the user's operational email context to look up their isolated dataset
+    final authState = context.watch<AuthCubit>().state;
+    final String userEmail = authState is Authenticated ? authState.email : "Guest";
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -53,9 +58,13 @@ class ProductCard extends StatelessWidget {
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: BlocBuilder<WishlistCubit, List<ProductModel>>(
-                      builder: (context, wishlist) {
-                        final isFavorite = wishlist.any((item) => item.id == product.id);
+                    // 🛠️ FIXED: Changed type argument bounds from List<ProductModel> to Map<String, List<ProductModel>>
+                    child: BlocBuilder<WishlistCubit, Map<String, List<ProductModel>>>(
+                      builder: (context, wishlistMap) {
+                        // 🛠️ FIXED: Use your cubit helper method to extract the correct user array list slice 
+                        final userWishlist = context.read<WishlistCubit>().getWishlistForUser(userEmail);
+                        final isFavorite = userWishlist.any((item) => item.id == product.id);
+                        
                         return Container(
                           height: 32,
                           width: 32,
@@ -71,7 +80,8 @@ class ProductCard extends StatelessWidget {
                               size: 18,
                               color: isFavorite ? Colors.redAccent : Colors.grey,
                             ),
-                            onPressed: () => context.read<WishlistCubit>().toggleWishlist(product),
+                            // 🛠️ FIXED: Supplied userEmail argument parameter to comply with isolation architecture rules
+                            onPressed: () => context.read<WishlistCubit>().toggleWishlist(userEmail, product),
                           ),
                         );
                       },
