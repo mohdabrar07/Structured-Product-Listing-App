@@ -15,8 +15,18 @@ class ProductService {
       final response = await _client.get(url);
       
       if (response.statusCode == 200) {
-        final List<dynamic> decodedData = jsonDecode(response.body);
-        return decodedData.map((json) => ProductModel.fromJson(json)).toList();
+        final decodedBody = jsonDecode(response.body);
+
+        if (decodedBody is List) {
+          // Explicitly type-cast maps to clear out dynamic runtime risks
+          final List<Map<String, dynamic>> structuredMapsList = decodedBody
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .toList();
+
+          return structuredMapsList.map((json) => ProductModel.fromJson(json)).toList();
+        } else {
+          throw const FormatException('Expected a JSON array list from the endpoint payload.');
+        }
       } else {
         throw Exception('Server returned an error status code: ${response.statusCode}');
       }

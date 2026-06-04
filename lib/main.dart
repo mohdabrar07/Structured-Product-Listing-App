@@ -12,7 +12,7 @@ import 'package:structured_product_listing_app/features/products/data/repositori
 // State Management Cubits
 import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart';
 import 'package:structured_product_listing_app/features/products/logic/cubit/product_cubit.dart';
-import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart'; 
+import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart'; // 💡 Contains both CartCubit and OrderCubit
 import 'package:structured_product_listing_app/features/wishlist/logic/cubit/wishlist_cubit.dart';
 import 'package:structured_product_listing_app/features/address/logic/cubit/address_cubit.dart';
 
@@ -67,7 +67,6 @@ class MyApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider<AuthCubit>(
-            // 💡 TRIGGER IMMEDIATE SESSION LOOKUP: Ensures asynchronous token validation starts spinning right away
             create: (_) => AuthCubit(storageService)..checkAuthenticationSession(), 
           ),
           BlocProvider<ProductCubit>(
@@ -83,7 +82,7 @@ class MyApp extends StatelessWidget {
             create: (_) => AddressCubit(),
           ),
           BlocProvider<OrderCubit>(
-            create: (_) => OrderCubit(),
+            create: (_) => OrderCubit(), // ✅ Works perfectly now because of the cart_cubit import above
           ),
         ],
         child: MaterialApp(
@@ -108,7 +107,6 @@ class AppNavigationGatekeeper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, state) {
-        // 🛠️ FIXED: Handle session persistence validation routing safely
         if (state is Authenticated) {
           return const HomeScreen();
         }
@@ -117,7 +115,6 @@ class AppNavigationGatekeeper extends StatelessWidget {
           return const LoginScreen();
         }
 
-        // 💡 EXPLICIT GATING STATE: Holds UI tree rendering on a splash loader until filesystem I/O verification returns true/false
         return const Scaffold(
           body: Center(
             child: Column(

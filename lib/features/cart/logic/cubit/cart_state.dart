@@ -4,32 +4,96 @@ class CartItem {
   final ProductModel product;
   final int quantity;
 
-  CartItem({required this.product, required this.quantity});
+  CartItem({
+    required this.product,
+    required this.quantity,
+  });
 
-  CartItem copyWith({ProductModel? product, int? quantity}) {
+  CartItem copyWith({
+    ProductModel? product,
+    int? quantity,
+  }) {
     return CartItem(
       product: product ?? this.product,
       quantity: quantity ?? this.quantity,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'product': product.toJson(),
-    'quantity': quantity,
-  };
+  // =========================
+  // TO JSON
+  // =========================
+  Map<String, dynamic> toJson() {
+    return {
+      'product': product.toJson(),
+      'quantity': quantity,
+    };
+  }
 
-  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
-    product: ProductModel.fromJson(json['product']),
-    quantity: json['quantity'] as int,
-  );
+  // =========================
+  // FROM JSON (SAFE VERSION)
+  // =========================
+  factory CartItem.fromJson(
+    Map<String, dynamic>? json,
+  ) {
+    if (json == null) {
+      return CartItem(
+        product: ProductModel(),
+        quantity: 1,
+      );
+    }
+
+    // SAFE PRODUCT PARSING
+    final productData =
+        json['product'] as Map<String, dynamic>?;
+
+    // SAFE QUANTITY PARSING
+    final qtyRaw = json['quantity'];
+
+    int parsedQty = 1;
+
+    if (qtyRaw is int) {
+      parsedQty = qtyRaw;
+    } else if (qtyRaw is String) {
+      parsedQty = int.tryParse(qtyRaw) ?? 1;
+    }
+
+    return CartItem(
+      product: ProductModel.fromJson(
+        productData ?? {},
+      ),
+      quantity: parsedQty,
+    );
+  }
 }
 
 class CartState {
   final List<CartItem> cartItems;
 
-  const CartState({this.cartItems = const []});
+  const CartState({
+    this.cartItems = const [],
+  });
 
-  double get totalPrice => cartItems.fold(0.0, (sum, element) => sum + ((element.product.price ?? 0) * element.quantity));
+  // =========================
+  // TOTAL PRICE
+  // =========================
+  double get totalPrice {
+    return cartItems.fold(
+      0.0,
+      (sum, element) =>
+          sum +
+          ((element.product.price ?? 0.0) *
+              element.quantity),
+    );
+  }
 
-  CartState copyWith({List<CartItem>? cartItems}) => CartState(cartItems: cartItems ?? this.cartItems);
+  // =========================
+  // COPY WITH
+  // =========================
+  CartState copyWith({
+    List<CartItem>? cartItems,
+  }) {
+    return CartState(
+      cartItems: cartItems ?? this.cartItems,
+    );
+  }
 }

@@ -15,27 +15,55 @@ class ProductModel {
     this.image,
   });
 
-  /// Factory constructor to map raw JSON objects from the API
-  factory ProductModel.fromJson(Map<String, dynamic> json) {
+  // ✅ SAFE JSON PARSING
+  factory ProductModel.fromJson(Map<String, dynamic>? json) {
+
+    // Prevent null crash
+    if (json == null) {
+      return ProductModel(
+        id: 0,
+        title: '',
+        price: 0.0,
+        description: '',
+        category: '',
+        image: '',
+      );
+    }
+
     return ProductModel(
-      id: json['id'] as int?,
-      title: json['title'] as String?,
-      price: (json['price'] as num?)?.toDouble(),
-      description: json['description'] as String?,
-      category: json['category'] as String?,
-      image: json['image'] as String?,
+      // SAFE ID
+      id: json['id'] == null
+          ? 0
+          : int.tryParse(json['id'].toString()) ?? 0,
+
+      // SAFE TITLE
+      title: json['title']?.toString() ?? '',
+
+      // SAFE PRICE
+      price: json['price'] == null
+          ? 0.0
+          : double.tryParse(json['price'].toString()) ?? 0.0,
+
+      // SAFE DESCRIPTION
+      description: json['description']?.toString() ?? '',
+
+      // SAFE CATEGORY
+      category: json['category']?.toString() ?? '',
+
+      // SAFE IMAGE
+      image: json['image']?.toString() ?? '',
     );
   }
 
-  /// Converts the instance back into a JSON map for local storage caching if needed
+  // ✅ TO JSON
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'title': title,
-      'price': price,
-      'description': description,
-      'category': category,
-      'image': image,
+      'id': id ?? 0,
+      'title': title ?? '',
+      'price': price ?? 0.0,
+      'description': description ?? '',
+      'category': category ?? '',
+      'image': image ?? '',
     };
   }
 }

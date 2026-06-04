@@ -1,9 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:structured_product_listing_app/features/products/data/models/product_model.dart'; // Ensure this import is here
+import 'package:structured_product_listing_app/features/products/data/models/product_model.dart'; 
+import 'package:structured_product_listing_app/features/products/data/repositories/product_repository.dart';
 import 'package:structured_product_listing_app/features/products/logic/cubit/product_state.dart';
 
 class ProductCubit extends Cubit<ProductState> {
-  final dynamic productRepository; 
+  final ProductRepository productRepository; 
 
   ProductCubit(this.productRepository) : super(const ProductInitial());
 
@@ -44,7 +45,6 @@ class ProductCubit extends Cubit<ProductState> {
   }
 
   void _filterAndSort(ProductSuccessState baselineState) {
-    // 💡 FIX: Using baselineState.allProducts.toList() explicitly retains List<ProductModel>
     List<ProductModel> filtered = baselineState.allProducts.toList();
 
     if (baselineState.selectedCategory != null && baselineState.selectedCategory!.isNotEmpty) {

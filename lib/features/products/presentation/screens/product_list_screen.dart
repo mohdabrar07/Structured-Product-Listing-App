@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:structured_product_listing_app/features/products/data/models/product_model.dart'; // ✅ Added missing explicit data model reference
 import 'package:structured_product_listing_app/features/products/logic/cubit/product_cubit.dart';
 import 'package:structured_product_listing_app/features/products/logic/cubit/product_state.dart';
 import 'package:structured_product_listing_app/features/products/presentation/widgets/product_card.dart';

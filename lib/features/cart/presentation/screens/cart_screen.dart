@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:structured_product_listing_app/features/auth/logic/cubit/auth_cubit.dart';
+
 import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_cubit.dart';
-import 'package:structured_product_listing_app/features/products/data/models/product_model.dart';
+import 'package:structured_product_listing_app/features/cart/logic/cubit/cart_state.dart';
+
 import 'package:structured_product_listing_app/features/cart/presentation/screens/checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
@@ -10,99 +13,156 @@ class CartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🛠️ FIXED: Fetch the active logged-in user email
     final authState = context.watch<AuthCubit>().state;
-    final String userEmail = authState is Authenticated ? authState.email : "Guest";
+
+    final String userEmail =
+        authState is Authenticated
+            ? authState.email
+            : "Guest";
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.grey.shade100,
+
       appBar: AppBar(
-        title: const Text('Shopping Cart', style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 0.5,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+        title: const Text(
+          "Shopping Cart",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
-      // 🛠️ FIXED: Listened to the updated Map state rather than a flat List
+
       body: BlocBuilder<CartCubit, Map<String, List<dynamic>>>(
         builder: (context, state) {
-          // 🛠️ FIXED: Pull items explicitly using our multi-user helper method
-          final List<ProductModel> cartList = context.read<CartCubit>().getCartForUser(userEmail);
 
-          if (cartList.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey.shade300),
-                  const SizedBox(height: 12),
-                  const Text('Your cart is empty', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                ],
+          final List<CartItem> cartItems =
+              context
+                  .watch<CartCubit>()
+                  .getCartForUser(userEmail);
+
+          if (cartItems.isEmpty) {
+            return const Center(
+              child: Text(
+                "Your cart is empty",
               ),
             );
           }
 
-          // Group the flat list dynamically to display quantities accurately in the UI
-          final Map<String, int> quantities = {};
-          final List<ProductModel> uniqueCartItems = [];
-
-          for (var item in cartList) {
-            final String itemKey = item.title ?? '';
-            if (!quantities.containsKey(itemKey)) {
-              uniqueCartItems.add(item);
-            }
-            quantities[itemKey] = (quantities[itemKey] ?? 0) + 1;
-          }
-
           return ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: uniqueCartItems.length,
+            itemCount: cartItems.length,
             itemBuilder: (context, index) {
-              final product = uniqueCartItems[index];
-              final quantity = quantities[product.title ?? ''] ?? 1;
+
+              final CartItem cartItem =
+                  cartItems[index];
+
+              final product = cartItem.product;
 
               return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
+                elevation: 2,
+                margin: const EdgeInsets.only(
+                  bottom: 12,
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(10.0),
+                  padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      Image.network(product.image ?? '', width: 60, height: 60, fit: BoxFit.contain),
+
+                      // IMAGE
+                      Image.network(
+                        product.image ?? '',
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.contain,
+                      ),
+
                       const SizedBox(width: 12),
+
+                      // DETAILS
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
+
                             Text(
-                              product.title ?? '', 
-                              maxLines: 1, 
-                              overflow: TextOverflow.ellipsis, 
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              product.title ?? '',
+                              maxLines: 2,
+                              overflow:
+                                  TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 18,
+                              ),
                             ),
-                            const SizedBox(height: 4),
+
+                            const SizedBox(height: 8),
+
                             Text(
-                              '\$${(product.price ?? 0).toStringAsFixed(2)}', 
-                              style: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.w600),
+                              'Qty: ${cartItem.quantity}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            Text(
+                              '\$${((product.price ?? 0.0) * cartItem.quantity).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight:
+                                    FontWeight.bold,
+                                color: Colors.indigo,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      Row(
+
+                      // BUTTONS
+                      Column(
                         children: [
+
+                          // INCREMENT
                           IconButton(
-                            icon: const Icon(Icons.remove_circle_outline), 
-                            // 🛠️ FIXED: Added userEmail as required parameter
-                            onPressed: () => context.read<CartCubit>().removeFromCart(userEmail, product),
+                            onPressed: () {
+
+                              context
+                                  .read<CartCubit>()
+                                  .addToCart(
+                                    userEmail,
+                                    product,
+                                  );
+                            },
+
+                            icon: const Icon(
+                              Icons.add_circle,
+                              color: Colors.green,
+                              size: 32,
+                            ),
                           ),
-                          Text('$quantity', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+
+                          // DECREMENT
                           IconButton(
-                            icon: const Icon(Icons.add_circle_outline), 
-                            // 🛠️ FIXED: Added userEmail as required parameter
-                            onPressed: () => context.read<CartCubit>().addToCart(userEmail, product),
+                            onPressed: () {
+
+                              context
+                                  .read<CartCubit>()
+                                  .removeFromCart(
+                                    userEmail,
+                                    product,
+                                  );
+                            },
+
+                            icon: const Icon(
+                              Icons.remove_circle,
+                              color: Colors.red,
+                              size: 32,
+                            ),
                           ),
                         ],
-                      )
+                      ),
                     ],
                   ),
                 ),
@@ -111,52 +171,78 @@ class CartScreen extends StatelessWidget {
           );
         },
       ),
-      // 🛠️ FIXED: Updated bottom bar listener type block to match Map state architecture
-      bottomNavigationBar: BlocBuilder<CartCubit, Map<String, List<dynamic>>>(
+
+      bottomNavigationBar:
+          BlocBuilder<CartCubit, Map<String, List<dynamic>>>(
         builder: (context, state) {
-          final List<ProductModel> cartList = context.read<CartCubit>().getCartForUser(userEmail);
 
-          if (cartList.isEmpty) return const SizedBox.shrink();
+          final List<CartItem> cartItems =
+              context
+                  .watch<CartCubit>()
+                  .getCartForUser(userEmail);
 
-          // Calculate the total bill dynamically from the list state
-          final double totalPrice = cartList.fold(0.0, (sum, item) => sum + (item.price ?? 0.0));
+          if (cartItems.isEmpty) {
+            return const SizedBox();
+          }
+
+          double total = 0;
+
+          for (var item in cartItems) {
+            total +=
+                (item.product.price ?? 0.0) *
+                item.quantity;
+          }
 
           return Container(
             padding: const EdgeInsets.all(20),
             color: Colors.white,
             child: SafeArea(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Bill:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                      Text(
-                        '\$${totalPrice.toStringAsFixed(2)}', 
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.indigo),
-                      ),
-                    ],
+
+                  Text(
+                    'Total: \$${total.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+
                   ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          Colors.indigo,
+                      foregroundColor:
+                          Colors.white,
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 30,
+                        vertical: 14,
+                      ),
+                    ),
+
                     onPressed: () {
+
                       Navigator.push(
-                        context, 
+                        context,
                         MaterialPageRoute(
-                          builder: (_) => CheckoutScreen(
-                            cartItems: cartList, 
-                            totalAmount: totalPrice,
+                          builder: (_) =>
+                              CheckoutScreen(
+                            cartItems:
+                                cartItems,
+                            totalAmount:
+                                total,
                           ),
                         ),
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo, 
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+
+                    child: const Text(
+                      "CHECKOUT",
                     ),
-                    child: const Text('CHECKOUT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  )
+                  ),
                 ],
               ),
             ),
